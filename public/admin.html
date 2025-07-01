@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Nepal Hostel Finder</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-bed"></i>
+                <span>Nepal Hostel Finder Admin</span>
+            </div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">Back to Home</a>
+                <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+                <span id="adminWelcome" class="admin-welcome"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="admin-main">
+        <div class="admin-container">
+            <div class="admin-header">
+                <h1>Admin Dashboard - Nepal Hostel Management</h1>
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <i class="fas fa-bed"></i>
+                        <div>
+                            <h3 id="totalHostels">0</h3>
+                            <p>Total Hostels</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-star"></i>
+                        <div>
+                            <h3 id="avgRating">0</h3>
+                            <p>Average Rating</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-rupee-sign"></i>
+                        <div>
+                            <h3 id="avgPrice">NPR 0</h3>
+                            <p>Average Price</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-users"></i>
+                        <div>
+                            <h3 id="totalUsers">0</h3>
+                            <p>Total Users</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-actions">
+                <button id="addHostelBtn" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add New Hostel
+                </button>
+            </div>
+
+            <div class="admin-content">
+                <div class="hostels-table-container">
+                    <h2>Manage Hostels</h2>
+                    <table id="hostelsTable" class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Location</th>
+                                <th>Price (NPR)</th>
+                                <th>Rating</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hostelsTableBody">
+                            <!-- Table rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add/Edit Hostel Modal -->
+    <div id="hostelModal" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">Add New Hostel</h2>
+            <form id="hostelForm">
+                <input type="hidden" id="hostelId" name="id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hostelName">Hostel Name:</label>
+                        <input type="text" id="hostelName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hostelLocation">Location:</label>
+                        <select id="hostelLocation" name="location" required>
+                            <option value="">Select Location</option>
+                            <option value="Kathmandu">Kathmandu</option>
+                            <option value="Lalitpur">Lalitpur</option>
+                            <option value="Bhaktapur">Bhaktapur</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hostelPrice">Price per month (NPR):</label>
+                        <input type="number" id="hostelPrice" name="price" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hostelRating">Rating (1-5):</label>
+                        <input type="number" id="hostelRating" name="rating" min="1" max="5" step="0.1" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hostelType">Hostel Type:</label>
+                        <select id="hostelType" name="type" required>
+                            <option value="">Select Type</option>
+                            <option value="Boys">Boys Hostel</option>
+                            <option value="Girls">Girls Hostel</option>
+                            <option value="Mixed">Mixed Hostel</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hostelCapacity">Capacity:</label>
+                        <input type="number" id="hostelCapacity" name="capacity" min="1" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hostelImage">Image URL:</label>
+                        <input type="url" id="hostelImage" name="image">
+                    </div>
+                    <div class="form-group">
+                        <label for="hostelContact">Contact Number:</label>
+                        <input type="tel" id="hostelContact" name="contact" placeholder="98XXXXXXXX">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="hostelDescription">Description:</label>
+                    <textarea id="hostelDescription" name="description" rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="hostelAmenities">Amenities (comma-separated):</label>
+                    <input type="text" id="hostelAmenities" name="amenities" placeholder="WiFi, Mess, Laundry, Study Room">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Hostel</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                </div>
+                <div id="hostelError" class="error-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
