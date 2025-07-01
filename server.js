@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken"
 import cors from "cors"
 import path from "path"
 import { fileURLToPath } from "url"
+import HostelRecommendationEngine from "./recommendation-engine.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -17,6 +18,9 @@ const JWT_SECRET = process.env.JWT_SECRET || "nepal-hostel-finder-secret-key"
 app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, "public")))
+
+// Initialize recommendation engine
+const recommendationEngine = new HostelRecommendationEngine()
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/nepal_hostel_finder"
@@ -284,6 +288,51 @@ app.post("/api/auth/register", async (req, res) => {
     })
   } catch (error) {
     console.error("Registration error:", error)
+    res.status(500).json({ message: "Server error" })
+  }
+})
+
+// Recommendation API routes
+app.post("/api/recommendations", authenticateToken, async (req, res) => {
+  try {
+    const { userId, preferences, context } = req.body
+    const hostels = await Hostel.find()
+
+    // Update user profile with preferences
+    recommendationEngine.updateUserProfile(userId, preferences)
+
+    // Get hybrid recommendations
+    const recommendations = recommendationEngine.hybridRecommendation(userId, hostels, preferences, context)
+
+    res.json({ recommendations })
+  } catch (error) {
+    console.error("Error generating recommendations:", error)
+    res.status(500).json({ message: "Server error" })
+  }
+})
+
+app.post("/api/interactions", authenticateToken, async (req, res) => {
+  try {
+    const { hostelId, interactionType, rating } = req.body
+    const userId = req.user.userId
+
+    // Track user interaction
+    recommendationEngine.trackUserInteraction(userId, hostelId, interactionType, rating)
+
+    res.json({ message: "Interaction tracked successfully" })
+  } catch (error) {
+    console.error("Error tracking interaction:", error)
+    res.status(500).json({ message: "Server error" })
+  }
+})
+
+app.get("/api/user-profile", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const profile = recommendationEngine.getUserProfile(userId)
+    res.json({ profile })
+  } catch (error) {
+    console.error("Error fetching user profile:", error)
     res.status(500).json({ message: "Server error" })
   }
 })

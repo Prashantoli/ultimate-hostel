@@ -387,6 +387,45 @@ body {
   gap: 0.5rem;
 }
 
+/* Recommendation styles */
+.hostel-card.recommended {
+  border: 2px solid #059669;
+  box-shadow: 0 5px 25px rgba(5, 150, 105, 0.2);
+}
+
+.recommendation-badge {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-radius: 5px;
+}
+
+.recommendation-reason {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+}
+
+.hostel-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.hostel-actions .btn-sm {
+  flex: 1;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
 /* Modal Styles */
 .modal {
   display: none;
@@ -397,17 +436,20 @@ body {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
 }
 
 .modal-content {
   background-color: white;
-  margin: 5% auto;
+  margin: 2% auto;
   padding: 2rem;
   border-radius: 15px;
   width: 90%;
   max-width: 500px;
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-large {
@@ -605,6 +647,81 @@ body {
   padding: 3rem;
   color: #666;
   font-size: 1.1rem;
+}
+
+/* Recommendation section */
+.recommendations-section {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+}
+
+.recommendations-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.recommendations-header h2 {
+  color: #1e40af;
+  margin-bottom: 0.5rem;
+}
+
+.recommendations-header p {
+  color: #64748b;
+}
+
+.admin-welcome {
+  color: white;
+  margin-left: 1rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.admin-dashboard-header {
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  color: white;
+  padding: 2rem;
+  border-radius: 15px;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.admin-dashboard-header h1 {
+  color: white;
+  margin-bottom: 0.5rem;
+  font-size: 2.5rem;
+}
+
+.admin-dashboard-header p {
+  opacity: 0.9;
+  font-size: 1.1rem;
+}
+
+.modal-form-container {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.modal-form-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-form-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.modal-form-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.modal-form-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 /* Responsive Design */

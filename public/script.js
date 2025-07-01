@@ -3,6 +3,10 @@ let currentUser = null
 let allHostels = []
 let filteredHostels = []
 
+// Import recommendation client
+let recommendationClient = null
+const RecommendationClient = window.RecommendationClient || null
+
 // DOM elements
 const loginBtn = document.getElementById("loginBtn")
 const registerBtn = document.getElementById("registerBtn")
@@ -30,6 +34,11 @@ document.addEventListener("DOMContentLoaded", () => {
   checkAuthStatus()
   loadHostels()
   setupEventListeners()
+
+  // Initialize recommendation client
+  if (RecommendationClient) {
+    recommendationClient = new RecommendationClient()
+  }
 })
 
 // Setup event listeners
@@ -226,7 +235,7 @@ function updateUIForLoggedOutUser() {
   adminPanelBtn.style.display = "none"
 }
 
-// Hostel loading and display functions
+// Enhanced hostel loading with recommendations
 async function loadHostels() {
   try {
     const response = await fetch("/api/hostels")
@@ -234,7 +243,33 @@ async function loadHostels() {
 
     if (response.ok) {
       allHostels = data
-      filteredHostels = [...allHostels]
+
+      // Get personalized recommendations if user is logged in
+      if (currentUser && recommendationClient) {
+        const recommendations = await recommendationClient.getRecommendations(currentUser.id)
+
+        if (recommendations.length > 0) {
+          // Show recommended hostels first
+          const recommendedHostels = recommendations.map((rec) => ({
+            ...rec.hostel,
+            isRecommended: true,
+            recommendationScore: rec.score,
+            recommendationReason: rec.reason,
+          }))
+
+          // Add non-recommended hostels
+          const nonRecommendedHostels = allHostels.filter(
+            (hostel) => !recommendedHostels.some((rec) => rec._id === hostel._id),
+          )
+
+          filteredHostels = [...recommendedHostels, ...nonRecommendedHostels]
+        } else {
+          filteredHostels = [...allHostels]
+        }
+      } else {
+        filteredHostels = [...allHostels]
+      }
+
       displayHostels(filteredHostels)
       updateResultsCount()
     } else {
@@ -265,8 +300,18 @@ function createHostelCard(hostel) {
 
   const typeClass = hostel.type.toLowerCase()
 
+  // Add recommendation badge if this is a recommended hostel
+  const recommendationBadge = hostel.isRecommended
+    ? `<div class="recommendation-badge">
+         <i class="fas fa-star"></i> Recommended for you
+         <div class="recommendation-reason">${hostel.recommendationReason}</div>
+       </div>`
+    : ""
+
   return `
-        <div class="hostel-card">
+        <div class="hostel-card ${hostel.isRecommended ? "recommended" : ""}" 
+             onclick="trackHostelView('${hostel._id}')">
+            ${recommendationBadge}
             <img src="${hostel.image || "/placeholder.svg?height=200&width=350"}" 
                  alt="${hostel.name}" class="hostel-image">
             <div class="hostel-content">
@@ -299,6 +344,14 @@ function createHostelCard(hostel) {
                 `
                     : ""
                 }
+                <div class="hostel-actions">
+                    <button class="btn btn-primary btn-sm" onclick="likeHostel('${hostel._id}')">
+                        <i class="fas fa-heart"></i> Like
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="bookHostel('${hostel._id}')">
+                        <i class="fas fa-calendar"></i> Book
+                    </button>
+                </div>
             </div>
         </div>
     `
@@ -441,4 +494,25 @@ function showNotification(message, type = "info") {
       notification.parentNode.removeChild(notification)
     }
   }, 3000)
+}
+
+// Track user interactions for recommendations
+async function trackHostelView(hostelId) {
+  if (recommendationClient) {
+    await recommendationClient.trackInteraction(hostelId, "view")
+  }
+}
+
+async function likeHostel(hostelId) {
+  if (recommendationClient) {
+    await recommendationClient.trackInteraction(hostelId, "like")
+    showNotification("Added to your preferences!", "success")
+  }
+}
+
+async function bookHostel(hostelId) {
+  if (recommendationClient) {
+    await recommendationClient.trackInteraction(hostelId, "book")
+    showNotification("Booking interest recorded!", "info")
+  }
 }
