@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # MongoDB database
+  mongodb:
+    image: mongo:7.0
+    container_name: nepal-hostel-db
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: nepal_hostel_finder
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - hostel-network
+
+  # Nepal Hostel Finder App
+  app:
+    build: .
+    container_name: nepal-hostel-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/nepal_hostel_finder
+      - JWT_SECRET=nepal-hostel-finder-secret-key-docker
+    depends_on:
+      - mongodb
+    networks:
+      - hostel-network
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+# Define volumes for data persistence
+volumes:
+  mongodb_data:
+
+# Define networks
+networks:
+  hostel-network:
+    driver: bridge
