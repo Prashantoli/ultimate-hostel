@@ -1,7 +1,7 @@
 {
-  "name": "hostel-recommendation-system",
+  "name": "nepal-hostel-finder",
   "version": "1.0.0",
-  "description": "A hostel recommendation system with MongoDB integration",
+  "description": "Complete hostel recommendation system for Nepal with advanced filtering algorithms",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -20,7 +20,7 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["hostel", "recommendation", "mongodb", "express", "javascript"],
-  "author": "Your Name",
+  "keywords": ["hostel", "recommendation", "nepal", "mongodb", "express"],
+  "author": "Nepal Hostel Finder Team",
   "license": "MIT"
 }

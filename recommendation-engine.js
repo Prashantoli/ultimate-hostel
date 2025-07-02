@@ -2,50 +2,48 @@
 class HostelRecommendationEngine {
   constructor() {
     this.userProfiles = new Map()
-    this.hostelFeatures = new Map()
-    this.userInteractions = []
+    this.userInteractions = new Map()
   }
 
   // Content-Based Filtering Algorithm
   contentBasedRecommendation(userId, hostels, userPreferences) {
-    const userProfile = this.getUserProfile(userId)
     const recommendations = []
 
     for (const hostel of hostels) {
-      const contentScore = this.calculateContentSimilarity(hostel, userProfile, userPreferences)
+      const contentScore = this.calculateContentSimilarity(hostel, userPreferences)
       recommendations.push({
         hostel,
         score: contentScore,
-        reason: this.generateContentReason(hostel, userProfile),
+        reason: this.generateContentReason(hostel, userPreferences),
       })
     }
 
-    return recommendations.sort((a, b) => b.score - a.score).slice(0, 10) // Top 10 recommendations
+    return recommendations.sort((a, b) => b.score - a.score).slice(0, 10)
   }
 
   // Context-Based Filtering Algorithm
   contextBasedRecommendation(userId, hostels, context) {
-    const contextualScores = []
+    const recommendations = []
 
     for (const hostel of hostels) {
       const contextScore = this.calculateContextualScore(hostel, context)
-      contextualScores.push({
+      recommendations.push({
         hostel,
         score: contextScore,
         reason: this.generateContextReason(hostel, context),
       })
     }
 
-    return contextualScores.sort((a, b) => b.score - a.score).slice(0, 10)
+    return recommendations.sort((a, b) => b.score - a.score).slice(0, 10)
   }
 
   // Collaborative Filtering Algorithm
-  collaborativeFiltering(userId, hostels) {
-    const userSimilarities = this.findSimilarUsers(userId)
+  collaborativeFiltering(userId, hostels, userInteractions) {
     const recommendations = []
+    const userSimilarities = this.findSimilarUsers(userId, userInteractions)
 
     for (const hostel of hostels) {
-      const collaborativeScore = this.calculateCollaborativeScore(hostel, userSimilarities)
+      const collaborativeScore = this.calculateCollaborativeScore(hostel, userSimilarities, userInteractions)
       recommendations.push({
         hostel,
         score: collaborativeScore,
@@ -57,41 +55,41 @@ class HostelRecommendationEngine {
   }
 
   // Hybrid Recommendation (Combines all algorithms)
-  hybridRecommendation(userId, hostels, userPreferences, context) {
+  hybridRecommendation(userId, hostels, userPreferences, context, userInteractions = []) {
     const contentRecs = this.contentBasedRecommendation(userId, hostels, userPreferences)
     const contextRecs = this.contextBasedRecommendation(userId, hostels, context)
-    const collaborativeRecs = this.collaborativeFiltering(userId, hostels)
+    const collaborativeRecs = this.collaborativeFiltering(userId, hostels, userInteractions)
 
     // Weighted combination
     const hybridScores = new Map()
 
     // Content-based weight: 40%
     contentRecs.forEach((rec) => {
-      const hostelId = rec.hostel._id
+      const hostelId = rec.hostel._id.toString()
       hybridScores.set(hostelId, (hybridScores.get(hostelId) || 0) + rec.score * 0.4)
     })
 
     // Context-based weight: 35%
     contextRecs.forEach((rec) => {
-      const hostelId = rec.hostel._id
+      const hostelId = rec.hostel._id.toString()
       hybridScores.set(hostelId, (hybridScores.get(hostelId) || 0) + rec.score * 0.35)
     })
 
     // Collaborative weight: 25%
     collaborativeRecs.forEach((rec) => {
-      const hostelId = rec.hostel._id
+      const hostelId = rec.hostel._id.toString()
       hybridScores.set(hostelId, (hybridScores.get(hostelId) || 0) + rec.score * 0.25)
     })
 
     // Create final recommendations
     const finalRecs = []
     for (const [hostelId, score] of hybridScores) {
-      const hostel = hostels.find((h) => h._id === hostelId)
+      const hostel = hostels.find((h) => h._id.toString() === hostelId)
       if (hostel) {
         finalRecs.push({
           hostel,
           score,
-          reason: this.generateHybridReason(hostel, contentRecs, contextRecs, collaborativeRecs),
+          reason: this.generateHybridReason(hostel, score),
         })
       }
     }
@@ -100,7 +98,7 @@ class HostelRecommendationEngine {
   }
 
   // Calculate Content Similarity Score
-  calculateContentSimilarity(hostel, userProfile, userPreferences) {
+  calculateContentSimilarity(hostel, userPreferences) {
     let score = 0
 
     // Location preference (30% weight)
@@ -126,7 +124,7 @@ class HostelRecommendationEngine {
       score += 10
     }
 
-    return Math.min(score, 100) // Cap at 100
+    return Math.min(score, 100)
   }
 
   // Calculate Contextual Score
@@ -145,15 +143,15 @@ class HostelRecommendationEngine {
 
     // Seasonal scoring
     if (context.season === "festival" && hostel.location === "Kathmandu") {
-      score += 25 // Kathmandu is popular during festivals
+      score += 25
     }
 
     // Urgency scoring
-    if (context.urgency === "immediate" && hostel.capacity > 20) {
-      score += 20 // Higher capacity = more likely to have availability
+    if (context.urgency === "immediate" && hostel.capacity > 30) {
+      score += 20
     }
 
-    // Distance from landmarks
+    // Landmark proximity
     if (context.nearLandmarks && this.isNearLandmarks(hostel, context.landmarks)) {
       score += 30
     }
@@ -162,19 +160,19 @@ class HostelRecommendationEngine {
   }
 
   // Calculate Collaborative Score
-  calculateCollaborativeScore(hostel, similarUsers) {
+  calculateCollaborativeScore(hostel, similarUsers, userInteractions) {
     let score = 0
     let totalWeight = 0
 
     for (const [userId, similarity] of similarUsers) {
-      const userRating = this.getUserRatingForHostel(userId, hostel._id)
+      const userRating = this.getUserRatingForHostel(userId, hostel._id, userInteractions)
       if (userRating > 0) {
         score += userRating * similarity
         totalWeight += similarity
       }
     }
 
-    return totalWeight > 0 ? (score / totalWeight) * 20 : 0 // Scale to 0-100
+    return totalWeight > 0 ? (score / totalWeight) * 20 : 0
   }
 
   // Helper Methods
@@ -184,9 +182,8 @@ class HostelRecommendationEngine {
       return 100
     }
 
-    // Penalty for being outside budget
     const deviation = Math.min(Math.abs(hostelPrice - minBudget), Math.abs(hostelPrice - maxBudget))
-    return Math.max(0, 100 - (deviation / 1000) * 10) // Reduce score based on price deviation
+    return Math.max(0, 100 - (deviation / 1000) * 10)
   }
 
   calculateAmenityScore(hostelAmenities, preferredAmenities) {
@@ -197,15 +194,24 @@ class HostelRecommendationEngine {
     return (matchingAmenities.length / preferredAmenities.length) * 100
   }
 
-  findSimilarUsers(userId) {
+  findSimilarUsers(userId, userInteractions) {
     const similarities = new Map()
-    const userInteractions = this.getUserInteractions(userId)
+    const userInteractionMap = new Map()
 
-    for (const [otherUserId, otherInteractions] of this.userInteractions) {
+    // Group interactions by user
+    userInteractions.forEach((interaction) => {
+      if (!userInteractionMap.has(interaction.userId)) {
+        userInteractionMap.set(interaction.userId, [])
+      }
+      userInteractionMap.get(interaction.userId).push(interaction)
+    })
+
+    const currentUserInteractions = userInteractionMap.get(userId) || []
+
+    for (const [otherUserId, otherInteractions] of userInteractionMap) {
       if (otherUserId !== userId) {
-        const similarity = this.calculateUserSimilarity(userInteractions, otherInteractions)
+        const similarity = this.calculateUserSimilarity(currentUserInteractions, otherInteractions)
         if (similarity > 0.3) {
-          // Threshold for similarity
           similarities.set(otherUserId, similarity)
         }
       }
@@ -213,11 +219,10 @@ class HostelRecommendationEngine {
 
     return Array.from(similarities.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10) // Top 10 similar users
+      .slice(0, 10)
   }
 
   calculateUserSimilarity(user1Interactions, user2Interactions) {
-    // Cosine similarity calculation
     const commonHostels = new Set()
     const user1Hostels = new Set(user1Interactions.map((i) => i.hostelId))
     const user2Hostels = new Set(user2Interactions.map((i) => i.hostelId))
@@ -235,8 +240,8 @@ class HostelRecommendationEngine {
     let norm2 = 0
 
     for (const hostelId of commonHostels) {
-      const rating1 = user1Interactions.find((i) => i.hostelId === hostelId)?.rating || 0
-      const rating2 = user2Interactions.find((i) => i.hostelId === hostelId)?.rating || 0
+      const rating1 = user1Interactions.find((i) => i.hostelId === hostelId)?.rating || 3
+      const rating2 = user2Interactions.find((i) => i.hostelId === hostelId)?.rating || 3
 
       dotProduct += rating1 * rating2
       norm1 += rating1 * rating1
@@ -246,20 +251,29 @@ class HostelRecommendationEngine {
     return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2))
   }
 
+  getUserRatingForHostel(userId, hostelId, userInteractions) {
+    const interaction = userInteractions.find((i) => i.userId === userId && i.hostelId === hostelId && i.rating)
+    return interaction ? interaction.rating : 0
+  }
+
+  isNearLandmarks(hostel, landmarks) {
+    return landmarks.some((landmark) => hostel.nearbyLandmarks.includes(landmark))
+  }
+
   // Reason Generation
-  generateContentReason(hostel, userProfile) {
+  generateContentReason(hostel, userPreferences) {
     const reasons = []
 
-    if (userProfile.preferredLocation === hostel.location) {
+    if (userPreferences.preferredLocation === hostel.location) {
       reasons.push(`Located in your preferred area: ${hostel.location}`)
     }
 
-    if (hostel.rating >= 4.0) {
-      reasons.push(`Highly rated (${hostel.rating}/5 stars)`)
+    if (hostel.rating >= userPreferences.minRating) {
+      reasons.push(`Meets your rating requirement (${hostel.rating}/5 stars)`)
     }
 
-    if (hostel.amenities.includes("WiFi")) {
-      reasons.push("Has WiFi connectivity")
+    if (userPreferences.preferredAmenities.some((amenity) => hostel.amenities.includes(amenity))) {
+      reasons.push("Has your preferred amenities")
     }
 
     return reasons.join(", ") || "Matches your preferences"
@@ -268,7 +282,7 @@ class HostelRecommendationEngine {
   generateContextReason(hostel, context) {
     const reasons = []
 
-    if (context.urgency === "immediate" && hostel.capacity > 20) {
+    if (context.urgency === "immediate" && hostel.capacity > 30) {
       reasons.push("High availability for immediate booking")
     }
 
@@ -280,63 +294,15 @@ class HostelRecommendationEngine {
   }
 
   generateCollaborativeReason(hostel, similarUsers) {
-    return `Recommended by users with similar preferences (${similarUsers.length} similar users)`
+    return `Recommended by ${similarUsers.length} users with similar preferences`
   }
 
-  generateHybridReason(hostel, contentRecs, contextRecs, collaborativeRecs) {
-    return `Best overall match based on your preferences, current context, and similar users`
-  }
-
-  // User Profile Management
-  getUserProfile(userId) {
-    return (
-      this.userProfiles.get(userId) || {
-        preferredLocation: null,
-        budgetRange: [0, 50000],
-        preferredAmenities: [],
-        minRating: 3.0,
-        hostelType: null,
-      }
-    )
-  }
-
-  updateUserProfile(userId, preferences) {
-    this.userProfiles.set(userId, { ...this.getUserProfile(userId), ...preferences })
-  }
-
-  // Interaction Tracking
-  trackUserInteraction(userId, hostelId, interactionType, rating = null) {
-    this.userInteractions.push({
-      userId,
-      hostelId,
-      interactionType, // 'view', 'like', 'book', 'rate'
-      rating,
-      timestamp: new Date(),
-    })
-  }
-
-  getUserInteractions(userId) {
-    return this.userInteractions.filter((interaction) => interaction.userId === userId)
-  }
-
-  getUserRatingForHostel(userId, hostelId) {
-    const interaction = this.userInteractions.find((i) => i.userId === userId && i.hostelId === hostelId && i.rating)
-    return interaction ? interaction.rating : 0
-  }
-
-  // Utility Methods
-  isNearLandmarks(hostel, landmarks) {
-    // Simple landmark proximity check (in real app, use geolocation)
-    const hostelLandmarks = {
-      Kathmandu: ["Durbar Square", "Thamel", "Swayambhunath"],
-      Lalitpur: ["Patan Durbar Square", "Golden Temple"],
-      Bhaktapur: ["Bhaktapur Durbar Square", "Nyatapola Temple"],
-    }
-
-    const nearbyLandmarks = hostelLandmarks[hostel.location] || []
-    return landmarks.some((landmark) => nearbyLandmarks.includes(landmark))
+  generateHybridReason(hostel, score) {
+    if (score > 80) return "Excellent match based on all factors"
+    if (score > 60) return "Good match for your preferences"
+    if (score > 40) return "Decent option to consider"
+    return "Alternative option"
   }
 }
 
-// Export for use in other files
 export default HostelRecommendationEngine

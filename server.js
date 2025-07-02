@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3000
-const JWT_SECRET = process.env.JWT_SECRET || "nepal-hostel-finder-secret-key"
+const JWT_SECRET = process.env.JWT_SECRET || "nepal-hostel-finder-secret-key-2024"
 
 // Middleware
 app.use(cors())
@@ -27,8 +27,8 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/nepal_
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error:", err))
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err))
 
 // User Schema
 const userSchema = new mongoose.Schema(
@@ -38,6 +38,13 @@ const userSchema = new mongoose.Schema(
     phone: { type: String },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    preferences: {
+      preferredLocation: { type: String },
+      budgetRange: { type: [Number], default: [5000, 20000] },
+      preferredAmenities: { type: [String], default: [] },
+      minRating: { type: Number, default: 3.0 },
+      hostelType: { type: String },
+    },
   },
   { timestamps: true },
 )
@@ -57,11 +64,27 @@ const hostelSchema = new mongoose.Schema(
     description: { type: String },
     amenities: { type: [String], default: [] },
     contact: { type: String },
+    address: { type: String },
+    nearbyLandmarks: { type: [String], default: [] },
   },
   { timestamps: true },
 )
 
 const Hostel = mongoose.model("Hostel", hostelSchema)
+
+// Interaction Schema for tracking user behavior
+const interactionSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    hostelId: { type: mongoose.Schema.Types.ObjectId, ref: "Hostel", required: true },
+    interactionType: { type: String, enum: ["view", "like", "book", "rate"], required: true },
+    rating: { type: Number, min: 1, max: 5 },
+    timestamp: { type: Date, default: Date.now },
+  },
+  { timestamps: true },
+)
+
+const Interaction = mongoose.model("Interaction", interactionSchema)
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -89,160 +112,224 @@ const requireAdmin = (req, res, next) => {
   next()
 }
 
-// Initialize default data
+// Initialize sample data
 async function initializeData() {
   try {
-    console.log("🔄 Initializing application data...")
+    console.log("🔄 Initializing Nepal Hostel Finder data...")
 
-    // Check database connection
-    const dbState = mongoose.connection.readyState
-    console.log("Database connection state:", dbState === 1 ? "Connected" : "Not Connected")
-
-    // Create admin user if it doesn't exist
+    // Create admin user
     const adminExists = await User.findOne({ email: "admin@nepalhostel.com" })
-    console.log("Admin user exists:", !!adminExists)
-
     if (!adminExists) {
-      const hashedPassword = await bcrypt.hash("admin123", 10)
-      const adminUser = await User.create({
+      const hashedPassword = await bcrypt.hash("admin123", 12)
+      await User.create({
         username: "admin",
         email: "admin@nepalhostel.com",
         password: hashedPassword,
         role: "admin",
       })
-      console.log("✅ Admin user created:", adminUser.email)
-    } else {
-      console.log("ℹ️ Admin user already exists")
+      console.log("✅ Admin user created (admin@nepalhostel.com / admin123)")
     }
 
-    // Check and create sample hostels
-    const hostelCount = await Hostel.countDocuments()
-    console.log("Current hostel count:", hostelCount)
+    // Create sample user
+    const userExists = await User.findOne({ email: "user@nepalhostel.com" })
+    if (!userExists) {
+      const userPassword = await bcrypt.hash("user123", 12)
+      await User.create({
+        username: "testuser",
+        email: "user@nepalhostel.com",
+        phone: "9841234567",
+        password: userPassword,
+        role: "user",
+        preferences: {
+          preferredLocation: "Kathmandu",
+          budgetRange: [8000, 15000],
+          preferredAmenities: ["WiFi", "Mess", "Study Room"],
+          minRating: 4.0,
+          hostelType: "Mixed",
+        },
+      })
+      console.log("✅ Sample user created (user@nepalhostel.com / user123)")
+    }
 
+    // Create sample hostels
+    const hostelCount = await Hostel.countDocuments()
     if (hostelCount === 0) {
-      console.log("🏨 Creating sample hostels...")
       const sampleHostels = [
         {
-          name: "Kathmandu Boys Hostel",
+          name: "Kathmandu Central Boys Hostel",
           location: "Kathmandu",
-          price: 8000,
-          rating: 4.2,
-          type: "Boys",
-          capacity: 50,
-          image: "/placeholder.svg?height=200&width=350",
-          description: "A comfortable boys hostel in the heart of Kathmandu with modern facilities.",
-          amenities: ["WiFi", "Mess", "Laundry", "Study Room", "24/7 Security"],
-          contact: "9841234567",
-        },
-        {
-          name: "Lalitpur Girls Residence",
-          location: "Lalitpur",
-          price: 12000,
-          rating: 4.5,
-          type: "Girls",
-          capacity: 30,
-          image: "/placeholder.svg?height=200&width=350",
-          description: "Safe and secure girls hostel in Lalitpur with excellent amenities.",
-          amenities: ["WiFi", "Mess", "Gym", "Library", "CCTV", "Warden"],
-          contact: "9851234567",
-        },
-        {
-          name: "Bhaktapur Mixed Hostel",
-          location: "Bhaktapur",
-          price: 6000,
-          rating: 3.8,
-          type: "Mixed",
-          capacity: 40,
-          image: "/placeholder.svg?height=200&width=350",
-          description: "Budget-friendly mixed hostel in historic Bhaktapur city.",
-          amenities: ["WiFi", "Shared Kitchen", "Common Room", "Parking"],
-          contact: "9861234567",
-        },
-        {
-          name: "Thamel Boys Lodge",
-          location: "Kathmandu",
-          price: 15000,
+          price: 8500,
           rating: 4.3,
           type: "Boys",
-          capacity: 25,
+          capacity: 60,
           image: "/placeholder.svg?height=200&width=350",
-          description: "Premium boys hostel in Thamel area with luxury facilities.",
-          amenities: ["WiFi", "AC Rooms", "Mess", "Gym", "Recreation Room"],
-          contact: "9871234567",
+          description:
+            "Modern boys hostel in the heart of Kathmandu with excellent facilities and easy access to colleges and universities.",
+          amenities: ["WiFi", "Mess", "Laundry", "Study Room", "24/7 Security", "Hot Water", "Parking"],
+          contact: "9841234567",
+          address: "New Baneshwor, Kathmandu",
+          nearbyLandmarks: ["Tribhuvan University", "City Centre", "Bus Park"],
         },
         {
-          name: "Patan Girls Hostel",
+          name: "Lalitpur Girls Paradise",
           location: "Lalitpur",
-          price: 9000,
-          rating: 4.1,
+          price: 12500,
+          rating: 4.6,
+          type: "Girls",
+          capacity: 40,
+          image: "/placeholder.svg?height=200&width=350",
+          description:
+            "Premium girls hostel in Lalitpur with top-notch security, modern amenities, and a supportive environment for female students.",
+          amenities: ["WiFi", "Mess", "Gym", "Library", "CCTV", "Female Warden", "Medical Room", "Recreation Room"],
+          contact: "9851234567",
+          address: "Jawalakhel, Lalitpur",
+          nearbyLandmarks: ["Patan Durbar Square", "UN Park", "Jawalakhel Zoo"],
+        },
+        {
+          name: "Bhaktapur Heritage Mixed Hostel",
+          location: "Bhaktapur",
+          price: 6500,
+          rating: 4.0,
+          type: "Mixed",
+          capacity: 50,
+          image: "/placeholder.svg?height=200&width=350",
+          description:
+            "Affordable mixed hostel in the cultural city of Bhaktapur, offering separate floors for boys and girls with traditional Newari architecture.",
+          amenities: ["WiFi", "Shared Kitchen", "Common Room", "Parking", "Cultural Tours", "Traditional Mess"],
+          contact: "9861234567",
+          address: "Durbar Square Area, Bhaktapur",
+          nearbyLandmarks: ["Bhaktapur Durbar Square", "Nyatapola Temple", "Pottery Square"],
+        },
+        {
+          name: "Thamel Backpackers Boys Lodge",
+          location: "Kathmandu",
+          price: 15500,
+          rating: 4.4,
+          type: "Boys",
+          capacity: 30,
+          image: "/placeholder.svg?height=200&width=350",
+          description:
+            "Premium boys hostel in the vibrant Thamel area, perfect for students who want to be close to the action with luxury amenities.",
+          amenities: ["WiFi", "AC Rooms", "Mess", "Gym", "Recreation Room", "Rooftop Garden", "Laundry"],
+          contact: "9871234567",
+          address: "Thamel, Kathmandu",
+          nearbyLandmarks: ["Thamel Market", "Garden of Dreams", "Kathmandu Durbar Square"],
+        },
+        {
+          name: "Patan Girls Sanctuary",
+          location: "Lalitpur",
+          price: 9500,
+          rating: 4.2,
           type: "Girls",
           capacity: 35,
           image: "/placeholder.svg?height=200&width=350",
-          description: "Well-maintained girls hostel near Patan Durbar Square.",
-          amenities: ["WiFi", "Mess", "Study Hall", "Medical Room", "Security"],
+          description:
+            "Safe and comfortable girls hostel near Patan with traditional architecture and modern facilities for a homely environment.",
+          amenities: ["WiFi", "Mess", "Study Hall", "Medical Room", "Security", "Cultural Programs", "Garden"],
           contact: "9881234567",
+          address: "Mangal Bazaar, Lalitpur",
+          nearbyLandmarks: ["Patan Museum", "Golden Temple", "Mahabouddha Temple"],
         },
         {
-          name: "Bhaktapur Heritage Boys",
+          name: "Bhaktapur Boys Heritage Home",
           location: "Bhaktapur",
-          price: 7500,
-          rating: 4.0,
+          price: 7800,
+          rating: 4.1,
           type: "Boys",
           capacity: 45,
           image: "/placeholder.svg?height=200&width=350",
-          description: "Traditional style boys hostel with modern amenities in Bhaktapur.",
-          amenities: ["WiFi", "Traditional Mess", "Cultural Programs", "Library"],
+          description:
+            "Traditional Newari-style boys hostel offering cultural immersion with modern comforts in the historic city of Bhaktapur.",
+          amenities: ["WiFi", "Traditional Mess", "Cultural Programs", "Library", "Heritage Tours", "Courtyard"],
           contact: "9891234567",
+          address: "Taumadhi Square, Bhaktapur",
+          nearbyLandmarks: ["Taumadhi Square", "Dattatreya Temple", "Peacock Window"],
         },
         {
-          name: "New Road Mixed Residence",
+          name: "New Road Executive Mixed",
           location: "Kathmandu",
-          price: 11000,
-          rating: 4.4,
+          price: 11500,
+          rating: 4.5,
           type: "Mixed",
-          capacity: 60,
+          capacity: 70,
           image: "/placeholder.svg?height=200&width=350",
-          description: "Modern mixed hostel in the commercial heart of Kathmandu.",
-          amenities: ["WiFi", "Cafeteria", "Study Rooms", "Elevator", "Backup Power"],
+          description:
+            "Modern executive-style mixed hostel in the commercial heart of Kathmandu with separate wings and premium facilities.",
+          amenities: [
+            "WiFi",
+            "Cafeteria",
+            "Study Rooms",
+            "Elevator",
+            "Backup Power",
+            "Shopping Access",
+            "Conference Room",
+          ],
           contact: "9801234567",
+          address: "New Road, Kathmandu",
+          nearbyLandmarks: ["New Road Shopping", "Ratna Park", "Tundikhel"],
         },
         {
-          name: "Lalitpur Premium Girls",
+          name: "Lalitpur Luxury Girls Residence",
           location: "Lalitpur",
-          price: 18000,
-          rating: 4.7,
+          price: 18500,
+          rating: 4.8,
           type: "Girls",
+          capacity: 25,
+          image: "/placeholder.svg?height=200&width=350",
+          description:
+            "Ultra-luxury girls hostel with premium amenities, personalized services, and an exclusive environment for discerning students.",
+          amenities: ["WiFi", "AC", "Private Bathrooms", "Spa", "Concierge", "Transport Service", "Fine Dining"],
+          contact: "9811234567",
+          address: "Sanepa, Lalitpur",
+          nearbyLandmarks: ["Sanepa Temple", "Lagankhel", "Ring Road"],
+        },
+        {
+          name: "Durbar Marg Elite Boys",
+          location: "Kathmandu",
+          price: 22000,
+          rating: 4.7,
+          type: "Boys",
           capacity: 20,
           image: "/placeholder.svg?height=200&width=350",
-          description: "Luxury girls hostel with premium facilities and services.",
-          amenities: ["WiFi", "AC", "Private Bathrooms", "Spa", "Concierge", "Transport"],
-          contact: "9811234567",
+          description:
+            "Elite boys hostel in the prestigious Durbar Marg area offering luxury accommodation with world-class amenities and services.",
+          amenities: ["WiFi", "AC", "Private Rooms", "Housekeeping", "Concierge", "Fine Dining", "Business Center"],
+          contact: "9821234567",
+          address: "Durbar Marg, Kathmandu",
+          nearbyLandmarks: ["Royal Palace", "Narayanhiti Palace", "Durbar Marg Shopping"],
+        },
+        {
+          name: "Bhaktapur Cultural Girls Home",
+          location: "Bhaktapur",
+          price: 10500,
+          rating: 4.3,
+          type: "Girls",
+          capacity: 30,
+          image: "/placeholder.svg?height=200&width=350",
+          description:
+            "Girls hostel that combines traditional Newari culture with modern safety and comfort, perfect for cultural enthusiasts.",
+          amenities: ["WiFi", "Traditional Mess", "Cultural Classes", "Security", "Heritage Walks", "Art Workshop"],
+          contact: "9831234567",
+          address: "Suryamadhi, Bhaktapur",
+          nearbyLandmarks: ["Changu Narayan", "Nagarkot", "Traditional Craft Centers"],
         },
       ]
 
-      const createdHostels = await Hostel.insertMany(sampleHostels)
-      console.log(`✅ Created ${createdHostels.length} sample hostels`)
-    } else {
-      console.log(`ℹ️ Found ${hostelCount} existing hostels`)
+      await Hostel.insertMany(sampleHostels)
+      console.log(`✅ Created ${sampleHostels.length} sample hostels`)
     }
 
-    // Final verification
-    const finalHostelCount = await Hostel.countDocuments()
-    const finalUserCount = await User.countDocuments()
-    console.log(`📊 Final counts - Users: ${finalUserCount}, Hostels: ${finalHostelCount}`)
+    console.log("🎉 Nepal Hostel Finder initialized successfully!")
   } catch (error) {
     console.error("❌ Error initializing data:", error)
   }
 }
-
-// Routes
 
 // Auth routes
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { username, password } = req.body
 
-    // Find user by username or email
     const user = await User.findOne({
       $or: [{ username }, { email: username }],
     })
@@ -279,7 +366,6 @@ app.post("/api/auth/register", async (req, res) => {
   try {
     const { username, email, phone, password } = req.body
 
-    // Check if user already exists
     const existingUser = await User.findOne({
       $or: [{ username }, { email }],
     })
@@ -288,7 +374,7 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(400).json({ message: "Username or email already exists" })
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 12)
     const user = new User({
       username,
       email,
@@ -312,17 +398,27 @@ app.post("/api/auth/register", async (req, res) => {
   }
 })
 
-// Recommendation API routes
+// Recommendation routes
 app.post("/api/recommendations", authenticateToken, async (req, res) => {
   try {
-    const { userId, preferences, context } = req.body
+    const { preferences, context } = req.body
+    const userId = req.user.userId
     const hostels = await Hostel.find()
 
-    // Update user profile with preferences
-    recommendationEngine.updateUserProfile(userId, preferences)
+    // Update user preferences
+    await User.findByIdAndUpdate(userId, { preferences })
 
-    // Get hybrid recommendations
-    const recommendations = recommendationEngine.hybridRecommendation(userId, hostels, preferences, context)
+    // Get user interactions for collaborative filtering
+    const userInteractions = await Interaction.find({ userId })
+
+    // Generate recommendations using the engine
+    const recommendations = recommendationEngine.hybridRecommendation(
+      userId,
+      hostels,
+      preferences,
+      context,
+      userInteractions,
+    )
 
     res.json({ recommendations })
   } catch (error) {
@@ -336,23 +432,17 @@ app.post("/api/interactions", authenticateToken, async (req, res) => {
     const { hostelId, interactionType, rating } = req.body
     const userId = req.user.userId
 
-    // Track user interaction
-    recommendationEngine.trackUserInteraction(userId, hostelId, interactionType, rating)
+    const interaction = new Interaction({
+      userId,
+      hostelId,
+      interactionType,
+      rating,
+    })
 
+    await interaction.save()
     res.json({ message: "Interaction tracked successfully" })
   } catch (error) {
     console.error("Error tracking interaction:", error)
-    res.status(500).json({ message: "Server error" })
-  }
-})
-
-app.get("/api/user-profile", authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.userId
-    const profile = recommendationEngine.getUserProfile(userId)
-    res.json({ profile })
-  } catch (error) {
-    console.error("Error fetching user profile:", error)
     res.status(500).json({ message: "Server error" })
   }
 })
@@ -368,36 +458,17 @@ app.get("/api/hostels", async (req, res) => {
   }
 })
 
-app.get("/api/hostels/:id", async (req, res) => {
-  try {
-    const hostel = await Hostel.findById(req.params.id)
-    if (!hostel) {
-      return res.status(404).json({ message: "Hostel not found" })
-    }
-    res.json(hostel)
-  } catch (error) {
-    console.error("Error fetching hostel:", error)
-    res.status(500).json({ message: "Server error" })
-  }
-})
-
 app.post("/api/hostels", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { name, location, price, rating, type, capacity, image, description, amenities, contact } = req.body
+    const hostelData = req.body
+    if (typeof hostelData.amenities === "string") {
+      hostelData.amenities = hostelData.amenities.split(",").map((a) => a.trim())
+    }
+    if (typeof hostelData.nearbyLandmarks === "string") {
+      hostelData.nearbyLandmarks = hostelData.nearbyLandmarks.split(",").map((l) => l.trim())
+    }
 
-    const hostel = new Hostel({
-      name,
-      location,
-      price,
-      rating,
-      type,
-      capacity,
-      image,
-      description,
-      amenities: typeof amenities === "string" ? amenities.split(",").map((a) => a.trim()) : amenities,
-      contact,
-    })
-
+    const hostel = new Hostel(hostelData)
     await hostel.save()
     res.status(201).json(hostel)
   } catch (error) {
@@ -408,29 +479,18 @@ app.post("/api/hostels", authenticateToken, requireAdmin, async (req, res) => {
 
 app.put("/api/hostels/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { name, location, price, rating, type, capacity, image, description, amenities, contact } = req.body
+    const hostelData = req.body
+    if (typeof hostelData.amenities === "string") {
+      hostelData.amenities = hostelData.amenities.split(",").map((a) => a.trim())
+    }
+    if (typeof hostelData.nearbyLandmarks === "string") {
+      hostelData.nearbyLandmarks = hostelData.nearbyLandmarks.split(",").map((l) => l.trim())
+    }
 
-    const hostel = await Hostel.findByIdAndUpdate(
-      req.params.id,
-      {
-        name,
-        location,
-        price,
-        rating,
-        type,
-        capacity,
-        image,
-        description,
-        amenities: typeof amenities === "string" ? amenities.split(",").map((a) => a.trim()) : amenities,
-        contact,
-      },
-      { new: true },
-    )
-
+    const hostel = await Hostel.findByIdAndUpdate(req.params.id, hostelData, { new: true })
     if (!hostel) {
       return res.status(404).json({ message: "Hostel not found" })
     }
-
     res.json(hostel)
   } catch (error) {
     console.error("Error updating hostel:", error)
@@ -451,11 +511,12 @@ app.delete("/api/hostels/:id", authenticateToken, requireAdmin, async (req, res)
   }
 })
 
-// Admin stats route
+// Admin stats
 app.get("/api/admin/stats", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const totalHostels = await Hostel.countDocuments()
     const totalUsers = await User.countDocuments({ role: "user" })
+    const totalInteractions = await Interaction.countDocuments()
 
     const hostels = await Hostel.find()
     const avgRating = hostels.length > 0 ? hostels.reduce((sum, h) => sum + h.rating, 0) / hostels.length : 0
@@ -464,6 +525,7 @@ app.get("/api/admin/stats", authenticateToken, requireAdmin, async (req, res) =>
     res.json({
       totalHostels,
       totalUsers,
+      totalInteractions,
       avgRating: Math.round(avgRating * 10) / 10,
       avgPrice: Math.round(avgPrice),
     })
@@ -480,6 +542,7 @@ app.get("*", (req, res) => {
 
 // Start server
 app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`)
+  console.log(`🚀 Nepal Hostel Finder running on port ${PORT}`)
+  console.log(`🌐 Open http://localhost:${PORT} in your browser`)
   await initializeData()
 })

@@ -6,10 +6,12 @@ let allHostels = []
 const logoutBtn = document.getElementById("logoutBtn")
 const adminWelcome = document.getElementById("adminWelcome")
 const addHostelBtn = document.getElementById("addHostelBtn")
+const refreshStatsBtn = document.getElementById("refreshStatsBtn")
 const hostelModal = document.getElementById("hostelModal")
 const hostelForm = document.getElementById("hostelForm")
 const hostelsTableBody = document.getElementById("hostelsTableBody")
 const totalHostels = document.getElementById("totalHostels")
+const totalUsers = document.getElementById("totalUsers")
 const avgRating = document.getElementById("avgRating")
 const avgPrice = document.getElementById("avgPrice")
 
@@ -17,6 +19,7 @@ const avgPrice = document.getElementById("avgPrice")
 document.addEventListener("DOMContentLoaded", () => {
   checkAuthStatus()
   loadHostels()
+  loadStats()
   setupEventListeners()
 })
 
@@ -45,6 +48,7 @@ function checkAuthStatus() {
 function setupEventListeners() {
   logoutBtn.addEventListener("click", logout)
   addHostelBtn.addEventListener("click", showAddHostelModal)
+  refreshStatsBtn.addEventListener("click", loadStats)
   hostelForm.addEventListener("submit", handleHostelSubmit)
 
   // Modal close functionality
@@ -63,6 +67,28 @@ function logout() {
   window.location.href = "index.html"
 }
 
+// Load admin statistics
+async function loadStats() {
+  try {
+    const response = await fetch("/api/admin/stats", {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+      },
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      totalHostels.textContent = data.totalHostels
+      totalUsers.textContent = data.totalUsers
+      avgRating.textContent = data.avgRating
+      avgPrice.textContent = `NPR ${data.avgPrice.toLocaleString()}`
+    }
+  } catch (error) {
+    console.error("Error loading stats:", error)
+  }
+}
+
 // Hostel management functions
 async function loadHostels() {
   try {
@@ -77,7 +103,6 @@ async function loadHostels() {
     if (response.ok) {
       allHostels = data
       displayHostelsTable()
-      updateStatistics()
     } else {
       console.error("Failed to load hostels:", data.message)
       showNotification("Failed to load hostels", "error")
@@ -90,53 +115,39 @@ async function loadHostels() {
 
 function displayHostelsTable() {
   if (allHostels.length === 0) {
-    hostelsTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hostels found</td></tr>'
+    hostelsTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hostels found</td></tr>'
     return
   }
 
   hostelsTableBody.innerHTML = allHostels
     .map(
       (hostel) => `
-        <tr>
-            <td>${hostel.name}</td>
-            <td>${hostel.location}</td>
-            <td>$${hostel.price}</td>
-            <td>${hostel.rating}/5</td>
-            <td>${hostel.type}</td>
-            <td>
-                <div class="action-buttons">
-                    <button class="btn btn-sm btn-primary" onclick="editHostel('${hostel._id}')">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteHostel('${hostel._id}')">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </div>
-            </td>
-        </tr>
+      <tr>
+        <td>${hostel.name}</td>
+        <td>${hostel.location}</td>
+        <td>NPR ${hostel.price.toLocaleString()}</td>
+        <td>${hostel.rating}/5</td>
+        <td>${hostel.type}</td>
+        <td>${hostel.capacity}</td>
+        <td>
+          <div class="action-buttons">
+            <button class="btn btn-sm btn-primary" onclick="editHostel('${hostel._id}')">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="deleteHostel('${hostel._id}')">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </td>
+      </tr>
     `,
     )
     .join("")
 }
 
-function updateStatistics() {
-  totalHostels.textContent = allHostels.length
-
-  if (allHostels.length > 0) {
-    const avgRatingValue = allHostels.reduce((sum, hostel) => sum + hostel.rating, 0) / allHostels.length
-    const avgPriceValue = allHostels.reduce((sum, hostel) => sum + hostel.price, 0) / allHostels.length
-
-    avgRating.textContent = avgRatingValue.toFixed(1)
-    avgPrice.textContent = `$${Math.round(avgPriceValue)}`
-  } else {
-    avgRating.textContent = "0"
-    avgPrice.textContent = "$0"
-  }
-}
-
 // Modal functions
 function showAddHostelModal() {
-  document.getElementById("modalTitle").textContent = "Add New Hostel"
+  document.getElementById("modalTitle").innerHTML = '<i class="fas fa-plus"></i> Add New Hostel'
   hostelForm.reset()
   document.getElementById("hostelId").value = ""
   hostelModal.style.display = "block"
@@ -158,9 +169,13 @@ async function handleHostelSubmit(e) {
     price: Number.parseFloat(formData.get("price")),
     rating: Number.parseFloat(formData.get("rating")),
     type: formData.get("type"),
+    capacity: Number.parseInt(formData.get("capacity")),
     image: formData.get("image"),
+    contact: formData.get("contact"),
+    address: formData.get("address"),
     description: formData.get("description"),
     amenities: formData.get("amenities"),
+    nearbyLandmarks: formData.get("nearbyLandmarks"),
   }
 
   const hostelId = formData.get("id")
@@ -185,6 +200,7 @@ async function handleHostelSubmit(e) {
       showNotification(isEdit ? "Hostel updated successfully!" : "Hostel added successfully!", "success")
       closeModal()
       loadHostels()
+      loadStats()
     } else {
       document.getElementById("hostelError").textContent = data.message || "Operation failed"
     }
@@ -198,18 +214,24 @@ async function editHostel(hostelId) {
   const hostel = allHostels.find((h) => h._id === hostelId)
   if (!hostel) return
 
-  document.getElementById("modalTitle").textContent = "Edit Hostel"
+  document.getElementById("modalTitle").innerHTML = '<i class="fas fa-edit"></i> Edit Hostel'
   document.getElementById("hostelId").value = hostel._id
   document.getElementById("hostelName").value = hostel.name
   document.getElementById("hostelLocation").value = hostel.location
   document.getElementById("hostelPrice").value = hostel.price
   document.getElementById("hostelRating").value = hostel.rating
   document.getElementById("hostelType").value = hostel.type
+  document.getElementById("hostelCapacity").value = hostel.capacity
   document.getElementById("hostelImage").value = hostel.image || ""
+  document.getElementById("hostelContact").value = hostel.contact || ""
+  document.getElementById("hostelAddress").value = hostel.address || ""
   document.getElementById("hostelDescription").value = hostel.description || ""
   document.getElementById("hostelAmenities").value = Array.isArray(hostel.amenities)
     ? hostel.amenities.join(", ")
     : hostel.amenities || ""
+  document.getElementById("hostelLandmarks").value = Array.isArray(hostel.nearbyLandmarks)
+    ? hostel.nearbyLandmarks.join(", ")
+    : hostel.nearbyLandmarks || ""
 
   hostelModal.style.display = "block"
 }
@@ -232,6 +254,7 @@ async function deleteHostel(hostelId) {
     if (response.ok) {
       showNotification("Hostel deleted successfully!", "success")
       loadHostels()
+      loadStats()
     } else {
       showNotification(data.message || "Failed to delete hostel", "error")
     }
@@ -252,26 +275,26 @@ function showNotification(message, type = "info") {
     top: "20px",
     right: "20px",
     padding: "1rem 2rem",
-    borderRadius: "5px",
+    borderRadius: "8px",
     color: "white",
     zIndex: "9999",
     fontSize: "1rem",
     boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+    maxWidth: "400px",
   })
 
   switch (type) {
     case "success":
-      notification.style.backgroundColor = "#28a745"
+      notification.style.backgroundColor = "#059669"
       break
     case "error":
-      notification.style.backgroundColor = "#dc3545"
+      notification.style.backgroundColor = "#dc2626"
       break
     case "warning":
-      notification.style.backgroundColor = "#ffc107"
-      notification.style.color = "#333"
+      notification.style.backgroundColor = "#d97706"
       break
     default:
-      notification.style.backgroundColor = "#17a2b8"
+      notification.style.backgroundColor = "#2563eb"
   }
 
   document.body.appendChild(notification)
@@ -280,5 +303,5 @@ function showNotification(message, type = "info") {
     if (notification.parentNode) {
       notification.parentNode.removeChild(notification)
     }
-  }, 3000)
+  }, 4000)
 }
