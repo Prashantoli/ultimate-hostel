@@ -92,22 +92,35 @@ const requireAdmin = (req, res, next) => {
 // Initialize default data
 async function initializeData() {
   try {
+    console.log("🔄 Initializing application data...")
+
+    // Check database connection
+    const dbState = mongoose.connection.readyState
+    console.log("Database connection state:", dbState === 1 ? "Connected" : "Not Connected")
+
     // Create admin user if it doesn't exist
     const adminExists = await User.findOne({ email: "admin@nepalhostel.com" })
+    console.log("Admin user exists:", !!adminExists)
+
     if (!adminExists) {
       const hashedPassword = await bcrypt.hash("admin123", 10)
-      await User.create({
+      const adminUser = await User.create({
         username: "admin",
         email: "admin@nepalhostel.com",
         password: hashedPassword,
         role: "admin",
       })
-      console.log("Admin user created")
+      console.log("✅ Admin user created:", adminUser.email)
+    } else {
+      console.log("ℹ️ Admin user already exists")
     }
 
-    // Create sample hostels if none exist
+    // Check and create sample hostels
     const hostelCount = await Hostel.countDocuments()
+    console.log("Current hostel count:", hostelCount)
+
     if (hostelCount === 0) {
+      console.log("🏨 Creating sample hostels...")
       const sampleHostels = [
         {
           name: "Kathmandu Boys Hostel",
@@ -207,11 +220,18 @@ async function initializeData() {
         },
       ]
 
-      await Hostel.insertMany(sampleHostels)
-      console.log("Sample hostels created")
+      const createdHostels = await Hostel.insertMany(sampleHostels)
+      console.log(`✅ Created ${createdHostels.length} sample hostels`)
+    } else {
+      console.log(`ℹ️ Found ${hostelCount} existing hostels`)
     }
+
+    // Final verification
+    const finalHostelCount = await Hostel.countDocuments()
+    const finalUserCount = await User.countDocuments()
+    console.log(`📊 Final counts - Users: ${finalUserCount}, Hostels: ${finalHostelCount}`)
   } catch (error) {
-    console.error("Error initializing data:", error)
+    console.error("❌ Error initializing data:", error)
   }
 }
 

@@ -43,46 +43,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Setup event listeners
 function setupEventListeners() {
-  loginBtn.addEventListener("click", showLoginModal)
-  registerBtn.addEventListener("click", showRegisterModal)
-  logoutBtn.addEventListener("click", logout)
-  loginForm.addEventListener("submit", handleLogin)
-  registerForm.addEventListener("submit", handleRegister)
-  searchBtn.addEventListener("click", performSearch)
-  searchInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      performSearch()
-    }
-  })
+  // Check if elements exist before adding listeners
+  if (loginBtn) loginBtn.addEventListener("click", showLoginModal)
+  if (registerBtn) registerBtn.addEventListener("click", showRegisterModal)
+  if (logoutBtn) logoutBtn.addEventListener("click", logout)
+  if (loginForm) loginForm.addEventListener("submit", handleLogin)
+  if (registerForm) registerForm.addEventListener("submit", handleRegister)
+  if (searchBtn) searchBtn.addEventListener("click", performSearch)
+  if (searchInput) {
+    searchInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        performSearch()
+      }
+    })
+  }
 
   // Filter event listeners
-  locationFilter.addEventListener("change", applyFilters)
-  priceFilter.addEventListener("change", applyFilters)
-  ratingFilter.addEventListener("change", applyFilters)
-  typeFilter.addEventListener("change", applyFilters)
-  sortBy.addEventListener("change", applyFilters)
+  if (locationFilter) locationFilter.addEventListener("change", applyFilters)
+  if (priceFilter) priceFilter.addEventListener("change", applyFilters)
+  if (ratingFilter) ratingFilter.addEventListener("change", applyFilters)
+  if (typeFilter) typeFilter.addEventListener("change", applyFilters)
+  if (sortBy) sortBy.addEventListener("change", applyFilters)
 
   // Admin panel button
-  adminPanelBtn.addEventListener("click", () => {
-    window.location.href = "admin.html"
-  })
+  if (adminPanelBtn) {
+    adminPanelBtn.addEventListener("click", () => {
+      window.location.href = "admin.html"
+    })
+  }
 
   // Modal close functionality
-  document.getElementById("loginClose").addEventListener("click", hideLoginModal)
-  document.getElementById("registerClose").addEventListener("click", hideRegisterModal)
+  const loginClose = document.getElementById("loginClose")
+  const registerClose = document.getElementById("registerClose")
+  const showRegisterFromLogin = document.getElementById("showRegisterFromLogin")
+  const showLoginFromRegister = document.getElementById("showLoginFromRegister")
+
+  if (loginClose) loginClose.addEventListener("click", hideLoginModal)
+  if (registerClose) registerClose.addEventListener("click", hideRegisterModal)
 
   // Switch between login and register
-  document.getElementById("showRegisterFromLogin").addEventListener("click", (e) => {
-    e.preventDefault()
-    hideLoginModal()
-    showRegisterModal()
-  })
+  if (showRegisterFromLogin) {
+    showRegisterFromLogin.addEventListener("click", (e) => {
+      e.preventDefault()
+      hideLoginModal()
+      showRegisterModal()
+    })
+  }
 
-  document.getElementById("showLoginFromRegister").addEventListener("click", (e) => {
-    e.preventDefault()
-    hideRegisterModal()
-    showLoginModal()
-  })
+  if (showLoginFromRegister) {
+    showLoginFromRegister.addEventListener("click", (e) => {
+      e.preventDefault()
+      hideRegisterModal()
+      showLoginModal()
+    })
+  }
 
   window.addEventListener("click", (e) => {
     if (e.target === loginModal) {
@@ -238,14 +252,29 @@ function updateUIForLoggedOutUser() {
 // Enhanced hostel loading with recommendations
 async function loadHostels() {
   try {
+    // Show loading state
+    if (hostelGrid) {
+      hostelGrid.innerHTML =
+        '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Loading hostels...</p></div>'
+    }
+    if (resultsCount) {
+      resultsCount.textContent = "Loading hostels..."
+    }
+
     const response = await fetch("/api/hostels")
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
     const data = await response.json()
+    console.log("Loaded hostels:", data.length)
 
-    if (response.ok) {
-      allHostels = data
+    allHostels = data
 
-      // Get personalized recommendations if user is logged in
-      if (currentUser && recommendationClient) {
+    // Get personalized recommendations if user is logged in
+    if (currentUser && recommendationClient) {
+      try {
         const recommendations = await recommendationClient.getRecommendations(currentUser.id)
 
         if (recommendations.length > 0) {
@@ -266,25 +295,37 @@ async function loadHostels() {
         } else {
           filteredHostels = [...allHostels]
         }
-      } else {
+      } catch (recError) {
+        console.warn("Recommendation error:", recError)
         filteredHostels = [...allHostels]
       }
-
-      displayHostels(filteredHostels)
-      updateResultsCount()
     } else {
-      console.error("Failed to load hostels:", data.message)
-      resultsCount.textContent = "Failed to load hostels"
+      filteredHostels = [...allHostels]
     }
+
+    displayHostels(filteredHostels)
+    updateResultsCount()
   } catch (error) {
     console.error("Error loading hostels:", error)
-    resultsCount.textContent = "Error loading hostels"
+    if (hostelGrid) {
+      hostelGrid.innerHTML =
+        '<div class="error-state"><i class="fas fa-exclamation-triangle"></i><h3>Error loading hostels</h3><p>Please refresh the page or try again later.</p></div>'
+    }
+    if (resultsCount) {
+      resultsCount.textContent = "Error loading hostels"
+    }
   }
 }
 
 function displayHostels(hostels) {
+  if (!hostelGrid) {
+    console.error("Hostel grid element not found")
+    return
+  }
+
   if (hostels.length === 0) {
-    hostelGrid.innerHTML = '<div class="no-results">No hostels found matching your criteria.</div>'
+    hostelGrid.innerHTML =
+      '<div class="no-results"><i class="fas fa-search"></i><h3>No hostels found</h3><p>Try adjusting your search criteria</p></div>'
     return
   }
 

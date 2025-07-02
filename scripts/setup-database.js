@@ -39,9 +39,12 @@ const Hostel = mongoose.model("Hostel", hostelSchema)
 
 async function setupDatabase() {
   try {
-    console.log("Connecting to MongoDB...")
-    await mongoose.connect(MONGODB_URI)
-    console.log("Connected to MongoDB successfully!")
+    console.log("🔄 Connecting to MongoDB...")
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    })
+    console.log("✅ Connected to MongoDB successfully!")
 
     // Clear existing data (optional - remove if you want to keep existing data)
     console.log("Clearing existing data...")
@@ -50,26 +53,40 @@ async function setupDatabase() {
 
     // Create admin user
     console.log("Creating admin user...")
-    const hashedPassword = await bcrypt.hash("admin123", 10)
-    await User.create({
-      username: "admin",
-      email: "admin@nepalhostel.com",
-      password: hashedPassword,
-      role: "admin",
-    })
+    const adminExists = await User.findOne({ email: "admin@nepalhostel.com" })
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash("admin123", 12)
+      await User.create({
+        username: "admin",
+        email: "admin@nepalhostel.com",
+        password: hashedPassword,
+        role: "admin",
+      })
+      console.log("✅ Admin user created successfully!")
+    } else {
+      console.log("ℹ️ Admin user already exists")
+    }
 
     // Create sample regular user
-    const userPassword = await bcrypt.hash("user123", 10)
-    await User.create({
-      username: "testuser",
-      email: "user@nepalhostel.com",
-      phone: "9841234567",
-      password: userPassword,
-      role: "user",
-    })
+    console.log("Creating sample user...")
+    const userExists = await User.findOne({ email: "user@nepalhostel.com" })
+    if (!userExists) {
+      const userPassword = await bcrypt.hash("user123", 12)
+      await User.create({
+        username: "testuser",
+        email: "user@nepalhostel.com",
+        phone: "9841234567",
+        password: userPassword,
+        role: "user",
+      })
+      console.log("✅ Sample user created successfully!")
+    } else {
+      console.log("ℹ️ Sample user already exists")
+    }
 
     // Create sample hostels for Nepal
     console.log("Creating sample hostels...")
+    const hostelCount = await Hostel.countDocuments()
     const sampleHostels = [
       {
         name: "Kathmandu Boys Hostel",
@@ -193,8 +210,12 @@ async function setupDatabase() {
         contact: "9831234567",
       },
     ]
-
-    await Hostel.insertMany(sampleHostels)
+    if (hostelCount === 0) {
+      await Hostel.insertMany(sampleHostels)
+      console.log(`✅ Created ${sampleHostels.length} sample hostels successfully!`)
+    } else {
+      console.log(`ℹ️ Found ${hostelCount} existing hostels, skipping creation`)
+    }
 
     console.log("Database setup completed successfully!")
     console.log("\nLogin credentials:")
